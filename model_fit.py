@@ -48,12 +48,12 @@ def span_points(x, s, n=100):
 
 
 
-def get_points(n=100):
+def get_points(X,S,  n=100):
     """ obtem os ponto com incertezas embutidas"""
     sample = []
-    nn = len(Mm)
+    nn = len(X)
     for i in range(nn):
-        xq = span_points(Mm[i], sigmaM[i], n)
+        xq = span_points(X[i], S[i], n)
         sample.append(  xq[xq >= 0] )  #adiocnao pontos positivos apenas
         #sample.append(span_points(Mm[i], sigmaM[i], n))
     return np.concatenate(sample)
@@ -62,7 +62,14 @@ def get_points(n=100):
 def BIC(model, Xpts, num_gaussians):
     """ modelo de BIC """
     n_parameters = (num_gaussians * 3 - 1)
-    npts = Xpts.get_shape().as_list()[0]
+
+    npts = -1
+    if isinstance(Xpts, (  np.ndarray)):
+        npts = Xpts.get_shape().as_list()[0]
+    else :
+        npts = len(Xpts)
+
+    #npts = Xpts.get_shape().as_list()[0]
     print(npts)
     logLikMean = tf.reduce_mean(model.log_prob(Xpts))
     return - 2 * logLikMean + n_parameters * np.log(npts)  # da wikipedia
@@ -73,9 +80,10 @@ def get_variables(pts,n=3):
     """cria as variaveis do modelo """
 
     xi, si , x0, s0  = init_gaussian_variables(pts,n)
-    vals = [f_gauss(xi[j - 1], x0, s0) for j in range(1, n+1)]
+    vals = [0.1+f_gauss(xi[j - 1], x0, s0) for j in range(1, n+1)]
     vsum = np.sum(vals)
     mvals =[ x / vsum  for x in vals]
+    #mvals =[0.2906224, 0.1839767, 0.4232223, 0.10217857]
     print(mvals)
     mx = [tf.Variable( mvals[j-1] , dtype=fdata, name='mix' + str(j)) for j in range(1, n)]
 
@@ -83,6 +91,9 @@ def get_variables(pts,n=3):
     sx = [tf.Variable( si[j-1] , dtype=fdata, name='s' + str(j)) for j in range(1, n + 1)]
 
     xx = [tf.Variable( xi[j-1], dtype=fdata, name='x' + str(j)) for j in range(1, n + 1)]
+
+
+
     #xx = [tf.constant( xi[j-1], dtype=fdata, name='x' + str(j)) for j in range(1, n + 1)]
 
     mix_cat = [1.0]
@@ -108,15 +119,17 @@ def init_gaussian_variables(pts , n ):
     """determina o valor inicial da variancia e centro das gaussianas por media simples"""
     xvar = np.var(pts)
     xmean = np.mean(pts)
-    xvar_ln = (np.max(pts) - np.min(pts))
+    var_ln = (np.max(pts) - np.min(pts))
     xmin = np.min(pts)
     print(xvar,xmean)
     assign_operations_s = []
     assign_operations_x = []
     #print([ ( 0.5+i - n/2.0 )  for i in range(n)])
     for i in range(n):
-        assign_operations_x.append( xmean + ( 0.5+i - n/2.0 ) *  xvar )
-        assign_operations_s.append(   xvar  )
+        assign_operations_x.append( xmean + ( 0.5+i - n/2.0 ) *  xvar  )
+        assign_operations_s.append( 3.5 *  xvar   )
+    #assign_operations_s = [0.0009129944, 0.00071762624, 0.012100535, 0.16126502]
+    #assign_operations_x =[0.15112922, 0.14530309, 0.16224127, 0.5291017]
     return assign_operations_x,assign_operations_s , xmean+0 ,xvar+0
 
 
@@ -127,24 +140,25 @@ def print_model_parameters(session, mvars,xvars,svars, loss ,xbic):
     print("S: ", [session.run(sj) for sj in svars])
     lss = session.run(loss)
     _bic = session.run(xbic)
-    print(lss)
+    print("loss ", lss)
     print("BIC ", _bic)
 
 
 
-def optimize(xDist,mvars,xvars,svars,loss,xbic, clip = [] ):
+def optimize(XP,xDist,mvars,xvars,svars,loss,train_a,xbic, clip = [] ):
     init = tf.initialize_all_variables()
     with tf.Session() as session:
         session.run(init)
         # file_writer = tf.summary.FileWriter('c:\\dev\\', session.graph)
 
-        old_lss = -9999999
-        step = 0
-        while True :
-            step = step +1
-            session.run(train_a)
-            for c in clip: session.run(c)
+        #print( session.run(xDist.prob(XP) + 0.001))
+        #ccc = (session.run( tf.log( xDist.prob(XP))))
 
+        old_lss = -9999999.0
+        step = -1
+        while True :
+            step = step + 1
+            for c in clip: session.run(c)
             if (step % 5000  == 0):
                 step = 1
                 print_model_parameters(session,mvars,xvars,svars,loss,xbic)
@@ -153,52 +167,34 @@ def optimize(xDist,mvars,xvars,svars,loss,xbic, clip = [] ):
                     #modelo estavel
                     break
                 old_lss = lss + 0
+            session.run(train_a)
 
         print_model_parameters(session,mvars, xvars, svars, loss, xbic)
-        xxrange = tf.range(0, 4, 0.03)
+
+        xa,xb = np.min(XP), np.max(XP)
+
+        xxrange = tf.range(0.0, 1.0, 0.0001)
+        #xxrange = tf.range(xa, xb, 0.03)
         yDist = xDist.prob(xxrange, name='yProbs')
         ypts = session.run(yDist)
         return list(session.run(xxrange)), list(ypts)
 
 
 
-pts = get_points(50)  # 50 pontos, isso afeta o BIC
+def full_fit(X,S,num_gaussians):
+    pts = get_points(X,S,50)  # 50 pontos, isso afeta o BIC
+    XP = tf.constant(pts, dtype=fdata)
+    #num_gaussians = 3
+    mvars, xvars, svars = get_variables(pts, num_gaussians)
 
+    xDist = model_mixture(mvars, xvars, svars)
+    zProbs = xDist.prob(XP) + 0.0000001
+    eta = 1e-6 # learning rate
+    loss = -tf.reduce_mean(tf.log(zProbs), name='loss')
+    train_a = tf.train.GradientDescentOptimizer(learning_rate=eta).minimize(loss)
+    xbic = BIC(xDist, X, num_gaussians)
 
-# pts = Mm
-XP = tf.constant(pts, dtype=fdata)
-num_gaussians =  3
-mvars, xvars, svars = get_variables(pts,num_gaussians)
-
-
-
-xDist = model_mixture(mvars, xvars, svars )
-zProbs = xDist.prob(XP )
-#xProbs = tf.log(zProbs,  name='xProbs')
-#xProbs = xDist.log(XP,  name='xProbs')
-
-
-## prepare optimizer
-eta = 1e-3 # learning rate
-loss = -tf.reduce_mean(tf.log(zProbs), name='loss')
-#train_a = tf.train.AdamOptimizer().minimize(loss)
-train_a = tf.train.GradientDescentOptimizer(learning_rate=eta).minimize(loss)
-
-
-
-
-
-xbic = BIC(xDist, XP, num_gaussians)
-
-
-
-#clip_x1 = xvars[0].assign(tf.maximum(1.38, tf.minimum(1.42, xvars[0])))
-#clip_x2 = xvars[1].assign(tf.maximum(1.78, tf.minimum(1.82, xvars[1])))
-#clip = tf.group(clip_x1, clip_x2)
-
-#if (num_gaussians > 2):
-    #clip_x3 = xvars[2].assign(tf.maximum(1.23, tf.minimum(1.27, xvars[2])))
-    #clip = tf.group(clip_x1, clip_x2, clip_x3)
+    return  pts, XP ,mvars, xvars, svars ,xDist ,train_a, loss , xbic
 
 
 
@@ -206,22 +202,3 @@ xbic = BIC(xDist, XP, num_gaussians)
 
 
 
-xmm, ymm = optimize(xDist,mvars,xvars,svars,loss,xbic, clip = [ ] )
-
-print(xmm, ymm)
-
-import matplotlib.pyplot as plt
-
-# Annotate diagram
-fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=[8, 5])
-ax1.hist(pts, bins=50, density=True, alpha=0.5, range=(0, 4), color="#707000")
-ax2.hist(Mm, bins=50, density=True, alpha=0.5, range=(0, 4), color="#0070FF")
-ax1.plot(xmm, ymm, color="crimson", lw=2, label="GMM")
-ax2.plot(xmm, ymm, color="crimson", lw=2, label="GMM")
-
-ax1.set_ylabel("Probability density")
-ax2.set_xlabel("Mass")
-
-# Draw legend
-plt.legend()
-plt.show()
