@@ -188,7 +188,7 @@ def full_fit(X,S,num_gaussians):
     mvars, xvars, svars = get_variables(pts, num_gaussians)
 
     xDist = model_mixture(mvars, xvars, svars)
-    zProbs = xDist.prob(XP) + 0.0000001
+    zProbs = xDist.prob(XP) + 0.001
     eta = 1e-6 # learning rate
     loss = -tf.reduce_mean(tf.log(zProbs), name='loss')
     train_a = tf.train.GradientDescentOptimizer(learning_rate=eta).minimize(loss)

@@ -22,7 +22,7 @@ Sw = [ 0.00037,0.00855,0.00079,0.01063,0.00092,0.00470,0.00052,0.01308,0.00017,0
 import tensorflow as tf
 import  model_fit
 
-pts,XP, mvars, xvars, svars, xDist, train_a, loss, xbic = model_fit.full_fit(Mw,Sw,2)
+pts,XP, mvars, xvars, svars, xDist, train_a, loss, xbic = model_fit.full_fit(Mw,Sw,3)
 
 
 print(mvars, xvars, svars, xDist, train_a, loss, xbic)
