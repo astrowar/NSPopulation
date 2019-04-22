@@ -79,17 +79,10 @@ def BIC(model, Xpts, num_gaussians):
 def get_variables(pts,n=3):
     """cria as variaveis do modelo """
 
-    xi, si , x0, s0  = init_gaussian_variables(pts,n)
-    vals = [0.1+f_gauss(xi[j - 1], x0, s0) for j in range(1, n+1)]
-    vsum = np.sum(vals)
-    mvals =[ x / vsum  for x in vals]
-    #mvals =[0.2906224, 0.1839767, 0.4232223, 0.10217857]
-    print(mvals)
+    xi, si , mvals  = init_gaussian_variables(pts,n)
+
     mx = [tf.Variable( mvals[j-1] , dtype=fdata, name='mix' + str(j)) for j in range(1, n)]
-
-
     sx = [tf.Variable( si[j-1] , dtype=fdata, name='s' + str(j)) for j in range(1, n + 1)]
-
     xx = [tf.Variable( xi[j-1], dtype=fdata, name='x' + str(j)) for j in range(1, n + 1)]
 
 
@@ -122,15 +115,22 @@ def init_gaussian_variables(pts , n ):
     var_ln = (np.max(pts) - np.min(pts))
     xmin = np.min(pts)
     print(xvar,xmean)
-    assign_operations_s = []
-    assign_operations_x = []
+
+    si = []
+    xi = []
     #print([ ( 0.5+i - n/2.0 )  for i in range(n)])
     for i in range(n):
-        assign_operations_x.append( xmean + ( 0.5+i - n/2.0 ) *  xvar  )
-        assign_operations_s.append( 3.5 *  xvar   )
-    #assign_operations_s = [0.0009129944, 0.00071762624, 0.012100535, 0.16126502]
-    #assign_operations_x =[0.15112922, 0.14530309, 0.16224127, 0.5291017]
-    return assign_operations_x,assign_operations_s , xmean+0 ,xvar+0
+
+        xi.append( xmean + ( 0.5+i - n/2.0 ) *  xvar  )
+        si.append( 3.5 *  xvar   )
+    #si = [0.0009129944, 0.00071762624, 0.012100535, 0.16126502]
+    #xi =[0.15112922, 0.14530309, 0.16224127, 0.5291017]
+
+    vals = [0.1+f_gauss(xi[j - 1], xmean+0, xvar+0) for j in range(1, n+1)]
+    vsum = np.sum(vals)
+    mvals =[ x / vsum  for x in vals]
+
+    return xi,si , mvals
 
 
 def print_model_parameters(session, mvars,xvars,svars, loss ,xbic):
@@ -188,7 +188,7 @@ def full_fit(X,S,num_gaussians):
     mvars, xvars, svars = get_variables(pts, num_gaussians)
 
     xDist = model_mixture(mvars, xvars, svars)
-    zProbs = xDist.prob(XP) + 0.001
+    zProbs = xDist.prob(XP) + 1e-12
     eta = 1e-6 # learning rate
     loss = -tf.reduce_mean(tf.log(zProbs), name='loss')
     train_a = tf.train.GradientDescentOptimizer(learning_rate=eta).minimize(loss)
