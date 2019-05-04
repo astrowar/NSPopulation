@@ -7,7 +7,6 @@ np.random.seed(723188)
 fdata = tf.float32
 
 
-
 def gauss_function(x, amp, x0, sigma):
     # return tfd.Normal( x0,sigma).prob(x)
     u = tf.divide((x - x0), (2.0 * sigma))
@@ -15,9 +14,11 @@ def gauss_function(x, amp, x0, sigma):
     # v = tf.exp(-1.0 * tf.square(u))
     return amp * v
 
+
 def f_gauss(x, x0, s):
-    u= (x - x0)/ s
-    return np.exp(-0.5* u*u )/  (s * 2.50662827463 )
+    u = (x - x0) / s
+    return np.exp(-0.5 * u * u) / (s * 2.50662827463)
+
 
 def logLik():
     baseDist = tf.distributions.Normal(0, 10)
@@ -37,8 +38,6 @@ sigmaM = [0.04, 0.04, 0.27, 0.083, 0.21, 0.10, 0.074, 0.051, 0.082, 0.358, 0.30,
           0.34, 0.021, 0.16]
 
 
-
-
 def span_points(x, s, n=100):
     """ converte 1 ponto de amostragem em N pontos centralizados em x com dispersão s """
     if (n == 1):
@@ -47,47 +46,68 @@ def span_points(x, s, n=100):
     return x + s * np.random.randn(n)
 
 
-
-def get_points(X,S,  n=100):
+def get_points(X, S, n=100):
     """ obtem os ponto com incertezas embutidas"""
     sample = []
     nn = len(X)
     for i in range(nn):
         xq = span_points(X[i], S[i], n)
-        sample.append(  xq[xq >= 0] )  #adiocnao pontos positivos apenas
-        #sample.append(span_points(Mm[i], sigmaM[i], n))
+        sample.append(xq[xq >= 0])  # adiocnao pontos positivos apenas
+        # sample.append(span_points(Mm[i], sigmaM[i], n))
     return np.concatenate(sample)
 
 
-def BIC(model, Xpts, num_gaussians):
+def AIC(model, Xpts, num_gaussians,err = 1e-12):
     """ modelo de BIC """
     n_parameters = (num_gaussians * 3 - 1)
 
     npts = -1
-    if isinstance(Xpts, (  np.ndarray)):
+    if isinstance(Xpts, (np.ndarray)):
         npts = Xpts.get_shape().as_list()[0]
-    else :
-        npts = len(Xpts)
+    else:
+        if isinstance(Xpts, list ):
+           npts = len(Xpts)
+        else:
+            npts = Xpts.get_shape().as_list()[0]
 
-    #npts = Xpts.get_shape().as_list()[0]
+
+    # npts = Xpts.get_shape().as_list()[0]
     print(npts)
-    logLikMean = tf.reduce_mean(model.log_prob(Xpts))
+    logLikMean = tf.reduce_mean( tf.log(  model.prob(Xpts) + err))
+    #logLikMean = tf.reduce_mean(model.log_prob(Xpts))
     return - 2 * logLikMean + n_parameters * np.log(npts)  # da wikipedia
 
 
+def BIC(model, Xpts, num_gaussians,err = 1e-12):
+    """ modelo de BIC """
+    n_parameters = (num_gaussians * 3 - 1)
 
-def get_variables(pts,n=3):
+    npts = -1
+    if isinstance(Xpts, (np.ndarray)):
+        npts = Xpts.get_shape().as_list()[0]
+    else:
+        if isinstance(Xpts, (tf.Tensor)):
+           npts = Xpts.get_shape().as_list()[0]
+        else:
+           npts = len(Xpts)
+
+    # npts = Xpts.get_shape().as_list()[0]
+    logLikMean = tf.reduce_mean(tf.log(model.prob(Xpts) + err))
+    #logLikMean = tf.reduce_mean(model.log_prob(Xpts))
+    return - 2 * logLikMean +  2* n_parameters
+
+
+
+def get_variables(pts, n=3):
     """cria as variaveis do modelo """
 
-    xi, si , mvals  = init_gaussian_variables(pts,n)
+    xi, si, mvals = init_gaussian_variables(pts, n)
 
-    mx = [tf.Variable( mvals[j-1] , dtype=fdata, name='mix' + str(j)) for j in range(1, n)]
-    sx = [tf.Variable( si[j-1] , dtype=fdata, name='s' + str(j)) for j in range(1, n + 1)]
-    xx = [tf.Variable( xi[j-1], dtype=fdata, name='x' + str(j)) for j in range(1, n + 1)]
+    mx = [tf.Variable(mvals[j - 1], dtype=fdata, name='mix' + str(j)) for j in range(1, n)]
+    sx = [tf.Variable(si[j - 1], dtype=fdata, name='s' + str(j)) for j in range(1, n + 1)]
+    xx = [tf.Variable(xi[j - 1], dtype=fdata, name='x' + str(j)) for j in range(1, n + 1)]
 
-
-
-    #xx = [tf.constant( xi[j-1], dtype=fdata, name='x' + str(j)) for j in range(1, n + 1)]
+    # xx = [tf.constant( xi[j-1], dtype=fdata, name='x' + str(j)) for j in range(1, n + 1)]
 
     mix_cat = [1.0]
     if n == 2:   mix_cat = [mx[0], 1.0 - mx[0]]
@@ -96,11 +116,10 @@ def get_variables(pts,n=3):
     if n == 5: mix_cat = [mx[0], mx[1], mx[2], mx[3], 1.0 - mx[0] - mx[1] - mx[2] - mx[3]]
     if n == 6: mix_cat = [mx[0], mx[1], mx[2], mx[3], mx[4], 1.0 - mx[0] - mx[1] - mx[2] - mx[3] - mx[4]]
     if n == 7: mix_cat = [mx[0], mx[1], mx[2], mx[3], mx[4], mx[5], 1.0 - mx[0] - mx[1] - mx[2] - mx[3] - mx[4] - mx[5]]
-    return  mix_cat, xx, sx
+    return mix_cat, xx, sx
 
 
-
-def model_mixture(mix_cat, xx, sx ):
+def model_mixture(mix_cat, xx, sx):
     """gera o modelo estatistico"""
     n = len(xx)
     comp_x = [tfd.Normal(loc=xx[j], scale=sx[j]) for j in range(n)]
@@ -108,97 +127,93 @@ def model_mixture(mix_cat, xx, sx ):
     return xDist
 
 
-def init_gaussian_variables(pts , n ):
+def init_gaussian_variables(pts, n):
     """determina o valor inicial da variancia e centro das gaussianas por media simples"""
     xvar = np.var(pts)
     xmean = np.mean(pts)
-    var_ln = (np.max(pts) - np.min(pts))
-    xmin = np.min(pts)
-    print(xvar,xmean)
+    #var_ln = (np.max(pts) - np.min(pts))
+    #xmin = np.min(pts)
+    print(xvar, xmean)
 
     si = []
     xi = []
-    #print([ ( 0.5+i - n/2.0 )  for i in range(n)])
+    # print([ ( 0.5+i - n/2.0 )  for i in range(n)])
     for i in range(n):
+        xi.append(xmean + (0.5 + i - n / 2.0) * xvar)
+        si.append(3.5 * xvar)
+    # si = [0.0009129944, 0.00071762624, 0.012100535, 0.16126502]
+    # xi =[0.15112922, 0.14530309, 0.16224127, 0.5291017]
 
-        xi.append( xmean + ( 0.5+i - n/2.0 ) *  xvar  )
-        si.append( 3.5 *  xvar   )
-    #si = [0.0009129944, 0.00071762624, 0.012100535, 0.16126502]
-    #xi =[0.15112922, 0.14530309, 0.16224127, 0.5291017]
-
-    vals = [0.1+f_gauss(xi[j - 1], xmean+0, xvar+0) for j in range(1, n+1)]
+    vals = [0.1 + f_gauss(xi[j - 1], xmean + 0, xvar + 0) for j in range(1, n + 1)]
     vsum = np.sum(vals)
-    mvals =[ x / vsum  for x in vals]
+    mvals = [x / vsum for x in vals]
 
-    return xi,si , mvals
+    return xi, si, mvals
 
 
-def print_model_parameters(session, mvars,xvars,svars, loss ,xbic):
-    if len(mvars) > 1 :
+def print_model_parameters(session, mvars, xvars, svars, loss, xbic , xaic):
+    if len(mvars) > 1:
         print("M: ", [session.run(mj) for mj in mvars])
     print("X: ", [session.run(xj) for xj in xvars])
     print("S: ", [session.run(sj) for sj in svars])
     lss = session.run(loss)
     _bic = session.run(xbic)
+    _aic = session.run(xaic)
     print("loss ", lss)
     print("BIC ", _bic)
+    print("AIC ", _aic)
 
 
-
-def optimize(XP,xDist,mvars,xvars,svars,loss,train_a,xbic, clip = [] ):
+def optimize(XP, xDist, mvars, xvars, svars, loss, train_a, xbic,xaic, clip=None, tolerance=0.001):
+    if clip is None:
+        clip = []
     init = tf.initialize_all_variables()
     with tf.Session() as session:
         session.run(init)
         # file_writer = tf.summary.FileWriter('c:\\dev\\', session.graph)
 
-        #print( session.run(xDist.prob(XP) + 0.001))
-        #ccc = (session.run( tf.log( xDist.prob(XP))))
+        # print( session.run(xDist.prob(XP) + 0.001))
+        # ccc = (session.run( tf.log( xDist.prob(XP))))
 
         old_lss = -9999999.0
         step = -1
-        while True :
+        while True:
             step = step + 1
             for c in clip: session.run(c)
-            if (step % 5000  == 0):
+            if (step % 5000 == 0):
                 step = 1
-                print_model_parameters(session,mvars,xvars,svars,loss,xbic)
+                print_model_parameters(session, mvars, xvars, svars, loss, xbic,xaic)
                 lss = session.run(loss)
-                if (np.abs(lss - old_lss) < np.abs(old_lss * 0.0001)):
-                    #modelo estavel
+                if (np.abs(lss - old_lss) < np.abs(old_lss * tolerance)):
+                    # modelo estavel
                     break
                 old_lss = lss + 0
             session.run(train_a)
 
-        print_model_parameters(session,mvars, xvars, svars, loss, xbic)
+        print_model_parameters(session, mvars, xvars, svars, loss, xbic,xaic)
 
-        xa,xb = np.min(XP), np.max(XP)
-
+        xa, xb = np.min(XP), np.max(XP)
         xxrange = tf.range(0.0, 1.0, 0.0001)
-        #xxrange = tf.range(xa, xb, 0.03)
+        # xxrange = tf.range(xa, xb, 0.03)
         yDist = xDist.prob(xxrange, name='yProbs')
         ypts = session.run(yDist)
         return list(session.run(xxrange)), list(ypts)
 
 
+def full_fit(X, S, num_gaussians):
+    err = 1e-30
 
-def full_fit(X,S,num_gaussians):
-    pts = get_points(X,S,50)  # 50 pontos, isso afeta o BIC
+    pts = get_points(X, S, 50)  # 50 pontos, isso afeta o BIC
     XP = tf.constant(pts, dtype=fdata)
-    #num_gaussians = 3
+    # num_gaussians = 3
     mvars, xvars, svars = get_variables(pts, num_gaussians)
 
     xDist = model_mixture(mvars, xvars, svars)
-    zProbs = xDist.prob(XP) + 1e-12
-    eta = 1e-6 # learning rate
+    zProbs = xDist.prob(XP) + err
+    eta = 1e-6  # learning rate
     loss = -tf.reduce_mean(tf.log(zProbs), name='loss')
     train_a = tf.train.GradientDescentOptimizer(learning_rate=eta).minimize(loss)
-    xbic = BIC(xDist, X, num_gaussians)
+    xbic = BIC(xDist, XP, num_gaussians,err)
+    xaic = AIC(xDist, XP, num_gaussians,err)
 
-    return  pts, XP ,mvars, xvars, svars ,xDist ,train_a, loss , xbic
-
-
-
-
-
-
-
+    return pts, XP, mvars, xvars, svars, xDist, train_a, loss, xbic , xaic
