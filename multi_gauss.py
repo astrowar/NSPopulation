@@ -522,7 +522,7 @@ def plot_hist(uuid_named , Mw,session,xDist):
     plt.legend()
     #plt.show()
     plt.savefig(str(uuid_named)+'.png')
-
+    plt.close()
 
 
 
@@ -685,7 +685,7 @@ def compute_gaussian_fit(xo, Mm_, sigmaM_ ):
             #session.run(init)
             save_path = saver.save(session, model_path_file )
             old_lss = None
-            while i < 500000:
+            while i < 5000000:
                 q = session.run(train_a, feed_dict = { learning_rate: eta})
                 i = i + 1
 
@@ -704,6 +704,7 @@ def compute_gaussian_fit(xo, Mm_, sigmaM_ ):
                         continue
                     else:
                         save_path = saver.save(session, "/tmp/model.ckpt")
+                        eta = eta * 1.1
 
 
                 if (i % 10000) == 0:
@@ -716,7 +717,7 @@ def compute_gaussian_fit(xo, Mm_, sigmaM_ ):
                     #   session.run(assign_op)
                     lss = session.run(loss)
                     if old_lss != None :
-                       if abs(lss - old_lss) < 0.0001 *  abs(lss) :
+                       if abs(lss - old_lss) < 0.00001 *  abs(lss) :
                           print (abs(lss - old_lss) ,  abs(lss)  )
                           break
                     old_lss = lss+0
@@ -745,8 +746,8 @@ import random
 if __name__ == "__main__":
     random.seed(723188)
     np.random.seed(723188)
-    xo_list =  list([[np.random.random() * 0.6 + 0.1  for i in range(4)] for tries in range(100)])
-    for xo in xo_list[2:]:
+    xo_list =  list([[np.random.random() * 0.6 + 0.1  for i in range(3)] for tries in range(100)])
+    for xo in xo_list[:6]:
         xo.sort()
         tf.reset_default_graph()
         compute_gaussian_fit(xo,Mm,sigmaM)
