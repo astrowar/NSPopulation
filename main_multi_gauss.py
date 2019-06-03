@@ -1,4 +1,3 @@
-
 Mw = [0.15064, 0.16697, 0.15262, 0.56734, 0.15152, 0.16219, 0.15074, 0.52799, 0.15089, 0.15201, 0.15217, 0.15939,
       0.15116, 0.15290, 0.15224, 0.15170, 0.15080, 0.14502, 0.17113, 0.15186, 0.56184, 0.15088, 0.35076, 0.15132,
       0.15059, 0.15263, 0.15072, 0.15088, 0.15103, 0.15254, 0.55817, 0.34825, 0.17726, 0.15110, 0.16299, 0.18150,
@@ -464,9 +463,6 @@ Sw = [0.00037, 0.00855, 0.00079, 0.01063, 0.00092, 0.00470, 0.00052, 0.01308, 0.
       0.00071, 0.00000, 0.00050, 0.00042, 0.00027, 0.00013, 0.00045, 0.00266, 0.00028, 0.00009, 0.00014, 0.00000,
       0.00008, 0.00013, 0.00010, 0.00009, 0.00014, 0.00029, 0.00025, 0.00180, 0.00171, 0.00018]
 
-
-
-
 import tensorflow as tf
 import tensorflow.contrib.distributions as tfd
 import numpy as np
@@ -475,44 +471,41 @@ import numpy as np
 import sys
 import uuid
 
+import random
 
 import matplotlib.pyplot as plt
 
 
-def compute_graph(  session ,xDist ,xmin ,xmax):
+def compute_graph(session, xDist, xmin, xmax):
     # xxrange = tf.range(xmin,xmax, 0.001)
     # print(xmin,xmax)
     # xxrange = tf.range(xa, xb, 0.03)
     xxrange = tf.range(0.0, 3.1323094594112066, 0.0001)
-    print(xDist ,xxrange)
-    yDist = xDist.prob( xxrange )
+    print(xDist, xxrange)
+    yDist = xDist.prob(xxrange)
     ypts = session.run(yDist)
     return list(session.run(xxrange)), list(ypts)
 
 
-def plot_hist(uuid_named , Mw ,session ,xDist ,loss_value):
+def plot_hist(uuid_named, MMw, session, xDist, loss_value):
     # Annotate diagram
-    xmin, xmax = np.min(Mw) ,np.max(Mw)
-    xmm, ymm = compute_graph(session ,xDist , xmin ,xmax)
-    fig, (ax1, ax2 ,ax3) = plt.subplots(nrows=3, ncols=1, figsize=[8, 9])
-    ax1.hist(Mw, bins=350, density=True, alpha=0.5, range=(xmin, xmax), color="#707000")
-    ax2.hist(Mw, bins=350, density=True, alpha=0.5, range=(xmin, xmax), color="#0070FF")
-    ax3.hist(Mw, bins=350, density=True, alpha=0.5, range=(xmin, xmax), color="#0070FF")
+    xmin, xmax = np.min(MMw), np.max(MMw)
+    xmm, ymm = compute_graph(session, xDist, xmin, xmax)
+    fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, figsize=[8, 9])
+    ax1.hist(MMw, bins=350, density=True, alpha=0.5, range=(xmin, xmax), color="#707000")
+    ax2.hist(MMw, bins=350, density=True, alpha=0.5, range=(xmin, xmax), color="#0070FF")
+    ax3.hist(MMw, bins=350, density=True, alpha=0.5, range=(xmin, xmax), color="#0070FF")
 
     ax1.plot(xmm, ymm, color="crimson", lw=1.2)
 
     ax2.plot(xmm, ymm, color="crimson", lw=1.2)
 
-
     ax3.plot(xmm, ymm, color="crimson", lw=1.2)
-    plt.ylim(0.0 ,1.5)
-
+    plt.ylim(0.0, 1.5)
 
     ax1.set_xlim(left=xmin, right=xmax)
     ax2.set_xlim(left=0.12, right=0.2)
     ax3.set_xlim(left=xmin, right=xmax)
-
-
 
     ax1.set_ylabel("Probability density")
     ax3.set_xlabel("Mass")
@@ -520,18 +513,19 @@ def plot_hist(uuid_named , Mw ,session ,xDist ,loss_value):
     bottom, height = .25, .5
     right = left + width
     top = bottom + height
-    ax1.text(right, top, "log likelihood  " +str(loss_value) ,  horizontalalignment='right',   verticalalignment='bottom',  transform=ax1.transAxes)
-
+    ax1.text(right, top, "log likelihood  " + str(loss_value), horizontalalignment='right', verticalalignment='bottom',
+             transform=ax1.transAxes)
 
     # Draw legend
     plt.legend()
     # plt.show()
-    plt.savefig(str(uuid_named ) +'.png')
+    plt.savefig(str(uuid_named) + '.png')
     plt.close()
 
 
 sigmaM = Sw
 Mm = Mw
+
 
 def span_points(x, s, n=100):
     """ converte 1 ponto de amostragem em N pontos centralizados em x com dispersão s """
@@ -552,37 +546,31 @@ def get_points(X, S, n=100):
     return np.concatenate(sample)
 
 
+def print_model_parameters(session, loss, fileOut=sys.stdout):
+    var_23 = [v for v in tf.global_variables() if v.name[0] == "x" and len(v.name) == 5]
+    print(" x:", session.run(var_23), file=fileOut)
 
+    svar_23 = [v for v in tf.global_variables() if v.name[0] == "s" and len(v.name) == 5]
+    print(" s:", session.run(svar_23), file=fileOut)
 
+    mvar_23 = [v for v in tf.global_variables() if v.name[0] == "m" and len(v.name) == 5]
 
-
-
-
-def print_model_parameters(session, loss , fileOut= sys.stdout ):
-    var_23 = [v for v in tf.global_variables() if v.name[0] == "x" and len(v.name) == 5  ]
-    print(" x:", session.run(var_23), file = fileOut)
-
-    svar_23 = [v for v in tf.global_variables() if v.name[0] == "s" and len(v.name) ==5  ]
-    print(" s:", session.run(svar_23), file = fileOut)
-
-    mvar_23 = [v for v in tf.global_variables() if v.name[0] == "m"  and len(v.name) == 5 ]
-
-    if len(mvar_23) > 1 :
-      # print([v for v in tf.global_variables() if v.name[0] == "m" ])
-      mvar_23.pop()
-      mvar_23.append(1.0 - np.sum(mvar_23) )
-      print(" m:", session.run(mvar_23), file = fileOut)
+    if len(mvar_23) > 1:
+        # print([v for v in tf.global_variables() if v.name[0] == "m" ])
+        mvar_23.pop()
+        mvar_23.append(1.0 - np.sum(mvar_23))
+        print(" m:", session.run(mvar_23), file=fileOut)
     else:
-      print(" m: [1.0]", file=fileOut)
+        print(" m: [1.0]", file=fileOut)
 
     lss = session.run(loss)
-    print(" loss ", lss, file = fileOut)
+    print(" loss ", lss, file=fileOut)
 
 
 print(tf.__version__)
 
 
-def BIC(model, Xpts, num_gaussians ,err = 1e-12):
+def BIC(model, Xpts, num_gaussians, err=1e-12):
     """ modelo de BIC """
     n_parameters = (num_gaussians * 3 - 1)
 
@@ -591,17 +579,17 @@ def BIC(model, Xpts, num_gaussians ,err = 1e-12):
         npts = Xpts.get_shape().as_list()[0]
     else:
         if isinstance(Xpts, (tf.Tensor)):
-           npts = Xpts.get_shape().as_list()[0]
+            npts = Xpts.get_shape().as_list()[0]
         else:
-           npts = len(Xpts)
+            npts = len(Xpts)
 
     # npts = Xpts.get_shape().as_list()[0]
     logLikMean = tf.reduce_mean(tf.log(model.prob(Xpts) + err))
     # logLikMean = tf.reduce_mean(model.log_prob(Xpts))
-    return - 2 * logLikMean + 2* n_parameters
+    return - 2 * logLikMean + 2 * n_parameters
 
 
-def get_mix( m, x, s, j, nn):
+def get_mix(m, x, s, j, nn):
     x1 = tf.Variable(x, name="x" + str(j) + str(nn))
     # x1 = tf.constant(x, name="x" + str(j) + str(nn))
     s1 = tf.Variable(s, name="s" + str(j) + str(nn))
@@ -649,31 +637,33 @@ def get_mixture(j, xoo):
 fdata = tf.float32
 
 
-def gCapper(session,x):
-    if  x != None :
-      #y =session.run(x)
-      #safe_grad = tf.where(tf.is_nan(x), 0.0, x)
-      return x
+def gCapper(session, x):
+    if x is not None:
+        # y =session.run(x)
+        # safe_grad = tf.where(tf.is_nan(x), 0.0, x)
+        return x
     return x
 
-def train(session,opt , loss, eta  ):
+
+def train(session, opt, loss, eta):
     # Compute the gradients for a list of variables.
-    grads_and_vars = opt.compute_gradients(loss )
+    grads_and_vars = opt.compute_gradients(loss)
 
     # grads_and_vars is a list of tuples (gradient, variable).  Do whatever you
     # need to the 'gradient' part, for example cap them, etc.
 
-    capped_grads_and_vars = [(gCapper(session,gv[0]), gv[1]) for gv in grads_and_vars]
+    capped_grads_and_vars = [(gCapper(session, gv[0]), gv[1]) for gv in grads_and_vars]
     # Ask the optimizer to apply the capped gradients.
-    opt.apply_gradients(capped_grads_and_vars,0.01)
+    opt.apply_gradients(capped_grads_and_vars, 0.01)
 
-def compute_gaussian_fit(xo, Mm_, sigmaM_):
+
+def compute_gaussian_fit(xo_, Mm_, sigmaM_):
     np.random.seed(723188)
 
     pts = get_points(Mm_, sigmaM_, 10)
     XP = tf.constant(pts, dtype=fdata)
 
-    xDist_1 = get_mixture(1, xo)
+    xDist_1 = get_mixture(1, xo_)
     # xDist_2 = get_mixture(2,[1.1,1.3,1.5])
     # xDist_3 = get_mixture(3,[1.2,1.4,1.6])
 
@@ -688,8 +678,6 @@ def compute_gaussian_fit(xo, Mm_, sigmaM_):
     loss = -tf.reduce_mean(tf.log(xDist_1.prob(XP) + err))
     opt_a = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
     train_a = opt_a.minimize(loss)
-
-
 
     # train_a = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(loss)
     # train_a = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
@@ -714,7 +702,7 @@ def compute_gaussian_fit(xo, Mm_, sigmaM_):
         while i < 500 * nsubLopp:
             q = session.run(train_a, feed_dict={learning_rate: eta})
 
-            #train(session, opt_a ,  loss , eta )
+            # train(session, opt_a ,  loss , eta )
 
             i = i + 1
             if (i % nsubLopp) == 0:
@@ -731,13 +719,12 @@ def compute_gaussian_fit(xo, Mm_, sigmaM_):
                     j = 1
                     continue
 
-
             if (i % nsubLopp) == 0:
                 j = 1
                 k = k - 1
                 print_model_parameters(session, loss)
                 lss = session.run(loss)
-                if old_lss != None:
+                if old_lss is not None:
                     if abs(lss - old_lss) < 0.00001 * abs(lss):
                         print(abs(lss - old_lss), abs(lss))
                         break
@@ -748,7 +735,7 @@ def compute_gaussian_fit(xo, Mm_, sigmaM_):
                         lss = session.run(loss)
                     else:
                         save_path = saver.save(session, "/tmp/model.ckpt")
-                        eta =eta *1.05
+                        eta = eta * 1.05
 
                 old_lss = lss + 0
             if k <= 0:
@@ -756,11 +743,11 @@ def compute_gaussian_fit(xo, Mm_, sigmaM_):
                 lss = session.run(loss)
                 plot_hist(uuid_named, Mm_, session, xDist_1, -lss)
 
-        bic_md = BIC(xDist_1, XP, len(xo), err)
+        bic_md = BIC(xDist_1, XP, len(xo_), err)
         bic = session.run(bic_md)
         print("BIC =", bic)
 
-        output_file = open("results_3.txt", "a")
+        output_file = open("results_" + str(len(xo_)) + ".txt", "a")
         print("\n\n", file=output_file)
         print(uuid_named, file=output_file)
         print_model_parameters(session, loss, fileOut=output_file)
@@ -770,8 +757,6 @@ def compute_gaussian_fit(xo, Mm_, sigmaM_):
         lss = session.run(loss)
         plot_hist(uuid_named, Mm_, session, xDist_1, -lss)
 
-
-import random
 
 if __name__ == "__main__":
     random.seed(723188)
