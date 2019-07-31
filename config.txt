@@ -7,8 +7,10 @@ data= "dados.txt"
 expand = 10
 
 #numero de gaussianas a serem computadas
+num_gaussians = 2
 
-num_gaussians = 3
+#centro da primeira gaussiana, uma sugestao de fit
+center = 0.154
 
 #range do plot do histogram
 plot_min = 0.0
