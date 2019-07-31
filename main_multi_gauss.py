@@ -463,6 +463,8 @@ Sw = [0.00037, 0.00855, 0.00079, 0.01063, 0.00092, 0.00470, 0.00052, 0.01308, 0.
       0.00071, 0.00000, 0.00050, 0.00042, 0.00027, 0.00013, 0.00045, 0.00266, 0.00028, 0.00009, 0.00014, 0.00000,
       0.00008, 0.00013, 0.00010, 0.00009, 0.00014, 0.00029, 0.00025, 0.00180, 0.00171, 0.00018]
 
+import os
+import configparser
 import tensorflow as tf
 import tensorflow.contrib.distributions as tfd
 import numpy as np
@@ -480,7 +482,8 @@ def compute_graph(session, xDist, xmin, xmax):
     # xxrange = tf.range(xmin,xmax, 0.001)
     # print(xmin,xmax)
     # xxrange = tf.range(xa, xb, 0.03)
-    xxrange = tf.range(0.0, 3.1323094594112066, 0.0001)
+    # xxrange = tf.range(0.0, 3.1323094594112066, 0.0001)
+    xxrange = tf.range(float(xmin), float(xmax), float(abs(xmax - xmin) * 0.0001))
     print(xDist, xxrange)
     yDist = xDist.prob(xxrange)
     ypts = session.run(yDist)
@@ -519,7 +522,7 @@ def plot_hist(uuid_named, MMw, session, xDist, loss_value):
     # Draw legend
     plt.legend()
     # plt.show()
-    plt.savefig(str(uuid_named) + '.png')
+    plt.savefig("results/" + str(uuid_named) + '.png')
     plt.close()
 
 
@@ -658,6 +661,7 @@ def train(session, opt, loss, eta):
 
 
 def compute_gaussian_fit(xo_, Mm_, sigmaM_):
+    print("start Compute")
     np.random.seed(723188)
 
     pts = get_points(Mm_, sigmaM_, 10)
@@ -679,9 +683,6 @@ def compute_gaussian_fit(xo_, Mm_, sigmaM_):
     opt_a = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
     train_a = opt_a.minimize(loss)
 
-    # train_a = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(loss)
-    # train_a = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
-
     saver = tf.train.Saver()
     model_path_file = "/tmp/model.ckpt"
     uuid_named = uuid.uuid4()
@@ -690,7 +691,8 @@ def compute_gaussian_fit(xo_, Mm_, sigmaM_):
     k = 5
     x00 = ([v for v in tf.global_variables() if v.name[0] == "x"])[0]
 
-    nsubLopp = 10000
+    # nsubLopp = 10000
+    nsubLopp = 10
     pertub = 0
 
     with tf.Session() as session:
@@ -712,8 +714,6 @@ def compute_gaussian_fit(xo_, Mm_, sigmaM_):
                     save_path = saver.restore(session, model_path_file)
                     eta = eta / 10.0
 
-                    # train_a = tf.train.GradientDescentOptimizer(learning_rate=eta).minimize(loss)
-                    # train_a = tf.train.AdamOptimizer(learning_rate=eta).minimize(loss)
                     print("reduzed step to ", eta)
                     if eta <= 1e-12: break
                     j = 1
@@ -747,7 +747,7 @@ def compute_gaussian_fit(xo_, Mm_, sigmaM_):
         bic = session.run(bic_md)
         print("BIC =", bic)
 
-        output_file = open("results_" + str(len(xo_)) + ".txt", "a")
+        output_file = open("results/results_" + str(len(xo_)) + ".txt", "a")
         print("\n\n", file=output_file)
         print(uuid_named, file=output_file)
         print_model_parameters(session, loss, fileOut=output_file)
@@ -758,7 +758,31 @@ def compute_gaussian_fit(xo_, Mm_, sigmaM_):
         plot_hist(uuid_named, Mm_, session, xDist_1, -lss)
 
 
+def load_data(fname):
+    Mx, Sx = [], []
+    for l in open(fname).readlines():
+        l = l.strip()
+        xy = l.split(" ")
+        if len(xy) >= 2:
+            # print(xy)
+            # print( float(xy[0]) , float(xy[1]) )
+            Mx.append(float(xy[0]))
+            Sx.append(float(xy[1]))
+    if (len(Mx)) < 0:
+        print("Unable to Load File")
+    return Mx, Sx
+
+
 if __name__ == "__main__":
+    data = ""
+    exec(open("./config.txt").read())
+    # config = configparser.ConfigParser()
+    # config.read('config.txt')
+    load_data(data)
+
+    if not os.path.exists("results/"):
+        os.makedirs("results/")
+
     random.seed(723188)
     np.random.seed(723188)
     xo_list = list([[0.154] + [np.random.random() * 0.6 + 0.04 for i in range(2)] for tries in range(100)])

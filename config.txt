@@ -1,0 +1,15 @@
+seed= 723188
+
+#arquivo com os dados na forma de uma lista de ponto x e sigma_x
+data= "dados.txt"
+
+#numero de ponteos expandidos por sample ... algo entre 3 e 20
+expand = 10
+
+#numero de gaussianas a serem computadas
+
+num_gaussians = 3
+
+#range do plot do histogram
+plot_min = 0.0
+plot_max = 3.20
